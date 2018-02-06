@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+    <script src="https://unpkg.com/vue"></script>
+</head>
+
+<body>
+    <h1 style="text-align: center">Dev Sabha</h1>
+    <div class="container" id="app">
+        <div class="columns">
+            <div class="column col-3 bg-gray">
+                <ul class="menu">
+                    <li class="menu-item">
+                        <strong> Online Users </strong>
+                    </li>
+                    <li class="divider"></li>
+                    <li v-for="user in users" class="menu-item"><a v-bind:class="{ active: user == selecteduser }" v-on:click="selectuser(user)">{{ user }}</a></li>
+                </ul>
+            </div>
+            <div class="column col-9">
+                <div v-for="chat in getchatlist">
+                    <p v-if="chat.From != username" style="text-align: left">
+                        {{ chat.Json_message }}
+                    </p>
+                    <p v-if="chat.From == username" style="text-align: right">
+                        {{ chat.Json_message }}
+                    </p>
+                    <hr />
+                    <br />
+                </div>
+                <div class="columns" style="position:fixed;bottom:0;width:100%">
+                    <div class="column col-6">
+                        <textarea v-model="txtmsg" style="width: 100%"></textarea>
+                    </div>
+                    <div class="column col-6">
+                        <button class="button btn-lg btn" v-on:click="send">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    function GetParameterValues(param) {
+        var url = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+        for (var i = 0; i < url.length; i++) {
+            var urlparam = url[i].split('=');
+            if (urlparam[0].toLowerCase() == param.toLowerCase()) {
+                return urlparam[1];
+            }
+        }
+    }
+    var app2 = new Vue({
+        el: '#app',
+        data: {
+            users: [],
+            selecteduser: [],
+            messages: [],
+            username: null,
+            ws: null,
+            txtmsg: null
+        },
+        created: function() {
+            this.$data.username = GetParameterValues("user");
+            this.$data.ws = new WebSocket('ws://' + window.location.host + '/ws?username=' + this.$data.username);
+            let model = this.$data;
+            this.$data.ws.addEventListener('message', function(e) {
+                var msg = JSON.parse(e.data);
+                model.messages.push(msg);
+            });
+            setInterval(() => fetch("/getUserList").then(a => a.json()).then(j => this.$data.users = j), 1000);
+        },
+        computed: {
+            getchatlist: function() {
+                return this.messages.filter(msg => msg.From == this.$data.selecteduser || msg.To == this.$data.selecteduser);
+            }
+        },
+        methods: {
+            send: function(event) {
+                this.$data.ws.send(JSON.stringify({
+                    from: this.$data.username,
+                    to: this.$data.selecteduser,
+                    json_message: this.$data.txtmsg
+                }));
+            },
+            selectuser: function(user) {
+                this.$data.selecteduser = user;
+            }
+        }
+    })
+</script>
+
+</html>
